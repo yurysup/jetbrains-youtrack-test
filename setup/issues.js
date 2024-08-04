@@ -2,7 +2,7 @@ import http from "k6/http";
 import { SharedArray } from "k6/data";
 import { HOSTS } from "../utils/hosts.js";
 import papaparse from "../utils/papaparse.min.js";
-import { getEnvVar, randomItem } from "../utils/utils.js";
+import { getEnvVar, randomItem, randomString } from "../utils/utils.js";
 
 // Parameters setup
 const ENV_ = getEnvVar("ENV", "remote");
@@ -62,9 +62,21 @@ const tokens = new SharedArray("tokens", function () {
     .data;
 });
 
+const summaries = new SharedArray("summaries", function () {
+  return papaparse.parse(open(`${FEEDS_DIR}/summaries.csv`), { header: false })
+    .data;
+});
+
+const descriptions = new SharedArray("descriptions", function () {
+  return papaparse.parse(open(`${FEEDS_DIR}/descriptions.csv`), {
+    header: false,
+  }).data;
+});
+
 export function test_create_issue() {
   const token = randomItem(tokens);
-  console.log(token);
+  const summary = randomItem(summaries);
+  const description = randomItem(descriptions);
   const params = {
     tags: { name: CREATE_ISSUE },
     timeout: HTTP_TIMEOUT,
@@ -75,8 +87,8 @@ export function test_create_issue() {
   };
   // Demo project id 0-0
   const payload = JSON.stringify({
-    summary: "Houston!",
-    description: "We have a problem!",
+    summary: `${summary[0]} ${randomString(3)}`,
+    description: description[0],
     project: {
       id: "0-0",
     },
