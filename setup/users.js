@@ -1,6 +1,7 @@
 import http from "k6/http";
 import { SharedArray } from "k6/data";
 import { scenario } from "k6/execution";
+import { sleep } from "k6";
 import { HOSTS } from "../utils/hosts.js";
 import papaparse from "../utils/papaparse.min.js";
 import { getEnvVar } from "../utils/utils.js";
@@ -18,7 +19,8 @@ const HTTP_TIMEOUT = "10s"; // override default timeout 60s
 const VUS = 1;
 
 // YouTrack parameters
-const YOUTRACK_SERVICE_ID = "ef71eae4-3405-49a5-be22-9517eeac46f2";
+//const YOUTRACK_SERVICE_ID = "ef71eae4-3405-49a5-be22-9517eeac46f2";
+const YOUTRACK_SERVICE_ID = "1499eb36-a7a4-4759-b300-1b4c0ca0de46";
 const HUB_SERVICE_ID = "0-0-0-0-0";
 
 /*
@@ -129,6 +131,7 @@ export function create_user() {
     );
     const token = res.json().token;
     console.log(token);
+    sleep(1);
   }
 }
 
