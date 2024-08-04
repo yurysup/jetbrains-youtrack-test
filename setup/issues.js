@@ -43,6 +43,12 @@ export const options = {
         { target: 0, duration: TEAR_DOWN },
       ],
     },
+    // create_100k_issues: {
+    //   executor: "shared-iterations",
+    //   vus: 10,
+    //   iterations: 100000,
+    //   maxDuration: "10m",
+    // },
   },
   // Thresholds defined for specific requests will appear in summary output.
   thresholds: {
