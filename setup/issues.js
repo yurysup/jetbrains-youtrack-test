@@ -22,9 +22,11 @@ const TEAR_DOWN = getEnvVar("TEAR_DOWN", "60s");
 
 /*
  * Load profile:
- * -> linearly ramp-up to starting X iterations per `timeUnit` over the 'duration' period;
- * -> continue starting X iterations per `timeUnit` for the following 'duration' period;
- * -> linearly ramp-down to starting 0 iterations per `timeUnit` over the 'duration' period.
+ * create_issues:
+ * -> linearly ramp-up to starting X users over the 'duration' period;
+ * -> linearly ramp-down to 0 users over the 'duration' period.
+ * create_100k_issues:
+ * -> share N iterations over X users.
  */
 export const options = {
   tags: {
