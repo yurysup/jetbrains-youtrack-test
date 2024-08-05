@@ -31,21 +31,21 @@ export const options = {
     env: ENV_,
   },
   scenarios: {
-    create_issues: {
-      executor: "ramping-vus",
-      exec: "test_create_issue",
-      startVUs: 0,
-      stages: [
-        { target: VUS, duration: RAMP_UP },
-        { target: 0, duration: TEAR_DOWN },
-      ],
-    },
-    // create_100k_issues: {
-    //   executor: "shared-iterations",
-    //   vus: 10,
-    //   iterations: 100000,
-    //   maxDuration: "10m",
+    // create_issues: {
+    //   executor: "ramping-vus",
+    //   exec: "test_create_issue",
+    //   startVUs: 0,
+    //   stages: [
+    //     { target: VUS, duration: RAMP_UP },
+    //     { target: 0, duration: TEAR_DOWN },
+    //   ],
     // },
+    create_100k_issues: {
+      executor: "shared-iterations",
+      vus: 35,
+      iterations: 100000,
+      maxDuration: "180m",
+    },
   },
   // Thresholds defined for specific requests will appear in summary output.
   thresholds: {
