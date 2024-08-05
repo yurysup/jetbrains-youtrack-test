@@ -3,6 +3,7 @@ import { SharedArray } from "k6/data";
 import { HOSTS } from "../utils/hosts.js";
 import papaparse from "../utils/papaparse.min.js";
 import { getEnvVar, randomItem, randomString } from "../utils/utils.js";
+import { sleep } from "k6";
 
 // Parameters setup
 const ENV_ = getEnvVar("ENV", "remote");
@@ -11,13 +12,11 @@ const FEEDS_DIR = "../feeds";
 const API_PREFIX = "api";
 const CREATE_ISSUE = "/issues";
 const HTTP_TIMEOUT = "10s"; // override default timeout 60s
-const PRE_ALLOCATED_VUS_20 = 20; // low load rate
-const PRE_ALLOCATED_VUS_200 = 200; // high load rate
 // Load rates
 const TIME_UNIT = "1m"; // load rates to be set per minute (RPM)
-const RATE_CREATE_ISSUE = 600;
+const VUS = 50;
 // Load Profile
-const RAMP_UP = getEnvVar("RAMP_UP", "60s");
+const RAMP_UP = getEnvVar("RAMP_UP", "600s");
 const HOLD_RATE = getEnvVar("HOLD_RATE", "60s");
 const TEAR_DOWN = getEnvVar("TEAR_DOWN", "60s");
 
@@ -33,13 +32,11 @@ export const options = {
   },
   scenarios: {
     create_issues: {
-      executor: "ramping-arrival-rate",
+      executor: "ramping-vus",
       exec: "test_create_issue",
-      timeUnit: TIME_UNIT,
-      preAllocatedVUs: PRE_ALLOCATED_VUS_200,
+      startVUs: 0,
       stages: [
-        { target: RATE_CREATE_ISSUE, duration: RAMP_UP },
-        { target: RATE_CREATE_ISSUE, duration: HOLD_RATE },
+        { target: VUS, duration: RAMP_UP },
         { target: 0, duration: TEAR_DOWN },
       ],
     },
@@ -101,6 +98,7 @@ export function test_create_issue() {
   });
   // https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues.html#create-Issue-method
   http.post(`${BASE_URL}/${API_PREFIX}/issues`, payload, params);
+  sleep(1);
 }
 
 export default function () {
