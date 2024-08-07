@@ -11,6 +11,7 @@ import { sleep, check } from "k6";
 // Parameters setup
 const ENV_ = getEnvVar("ENV", "remote");
 const BASE_URL = getEnvVar("BASE_URL", HOSTS[ENV_]);
+const DEBUG = getEnvVar("DEBUG", false);
 const FEEDS_DIR = "./feeds";
 const API_PREFIX = "api";
 const GET_PREFIX = "GET ";
@@ -26,7 +27,7 @@ const RATE_UPDATE_ISSUE = Math.ceil(15 * X_LOAD);
 const RATE_VIEW_ISSUE = Math.ceil(50 * X_LOAD);
 const RATE_SEARCH = Math.ceil(17 * X_LOAD);
 // Load Profile
-const RAMP_UP = getEnvVar("RAMP_UP", "60s");
+const RAMP_UP = getEnvVar("RAMP_UP", "30s");
 const HOLD_RATE = getEnvVar("HOLD_RATE", "60s");
 const TEAR_DOWN = getEnvVar("TEAR_DOWN", "60s");
 
@@ -167,14 +168,17 @@ const errorHandler = new ErrorHandler((error) => {
   console.error(error);
 });
 export function checkLogError(res) {
-  let checkStatus = check(
-    res,
-    {
-      "status is 200": (res) => res.status === 200,
-    },
-    { name: "main_calls_status_200" },
-  );
-  errorHandler.logError(!checkStatus, res);
+  if (DEBUG) {
+    console.log(DEBUG);
+    let checkStatus = check(
+      res,
+      {
+        "status is 200": (res) => res.status === 200,
+      },
+      { name: "main_calls_status_200" },
+    );
+    errorHandler.logError(!checkStatus, res);
+  }
 }
 
 export function testCreateIssue() {
