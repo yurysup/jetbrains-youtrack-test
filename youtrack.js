@@ -21,14 +21,14 @@ const PRE_ALLOCATED_VUS_20 = 20; // low load rate
 const PRE_ALLOCATED_VUS_100 = 100; // high load rate
 // Load rates
 const TIME_UNIT = "1m"; // load rates to be set per minute (RPM)
-const X_LOAD = getEnvVar("X_LOAD", 1);
+const X_LOAD = getEnvVar("X_LOAD", 0.2);
 const RATE_CREATE_ISSUE = Math.ceil(2 * X_LOAD);
 const RATE_UPDATE_ISSUE = Math.ceil(15 * X_LOAD);
 const RATE_VIEW_ISSUE = Math.ceil(50 * X_LOAD);
 const RATE_SEARCH = Math.ceil(17 * X_LOAD);
 // Load Profile
-const RAMP_UP = getEnvVar("RAMP_UP", "30s");
-const HOLD_RATE = getEnvVar("HOLD_RATE", "60s");
+const RAMP_UP = getEnvVar("RAMP_UP", "60s");
+const HOLD_RATE = getEnvVar("HOLD_RATE", "600s");
 const TEAR_DOWN = getEnvVar("TEAR_DOWN", "60s");
 
 /*

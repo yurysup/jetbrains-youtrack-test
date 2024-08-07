@@ -4,7 +4,7 @@ const ENDPOINTS = {
     params:
       "topRoot=100&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
     params_update:
-      "topRoot=1000&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
+      "topRoot=100&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
     params_search:
       "topRoot=100&skipRoot=0&flatten=true&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
   },
