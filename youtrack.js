@@ -3,9 +3,10 @@ import { SharedArray } from "k6/data";
 import { HOSTS } from "./utils/hosts.js";
 import { ENDPOINTS } from "./utils/enpoints.js";
 import papaparse from "./utils/papaparse.min.js";
+import { ErrorHandler } from "./utils/error_handler.js";
 import { getEnvVar, randomItem, randomString } from "./utils/utils.js";
 import { URL } from "https://jslib.k6.io/url/1.0.0/index.js";
-import { sleep } from "k6";
+import { sleep, check } from "k6";
 
 // Parameters setup
 const ENV_ = getEnvVar("ENV", "remote");
@@ -25,9 +26,9 @@ const RATE_UPDATE_ISSUE = Math.ceil(15 * X_LOAD);
 const RATE_VIEW_ISSUE = Math.ceil(50 * X_LOAD);
 const RATE_SEARCH = Math.ceil(17 * X_LOAD);
 // Load Profile
-const RAMP_UP = getEnvVar("RAMP_UP", "300s");
-const HOLD_RATE = getEnvVar("HOLD_RATE", "10s");
-const TEAR_DOWN = getEnvVar("TEAR_DOWN", "10s");
+const RAMP_UP = getEnvVar("RAMP_UP", "60s");
+const HOLD_RATE = getEnvVar("HOLD_RATE", "60s");
+const TEAR_DOWN = getEnvVar("TEAR_DOWN", "60s");
 
 /*
  * Load profile:
@@ -107,6 +108,7 @@ export const options = {
     [`http_req_duration{name:${GET_PREFIX + ENDPOINTS["searchAssist"]["path"]}}`]:
       ["p(90)<500"],
     http_req_failed: ["rate < 0.01"],
+    "checks{name:main_calls_status_200}": ["rate>0.99"],
   },
 };
 
@@ -160,6 +162,21 @@ const searchQueries = new SharedArray("searchQueries", function () {
   }).data;
 });
 
+// Log errors in console
+const errorHandler = new ErrorHandler((error) => {
+  console.error(error);
+});
+export function checkLogError(res) {
+  let checkStatus = check(
+    res,
+    {
+      "status is 200": (res) => res.status === 200,
+    },
+    { name: "main_calls_status_200" },
+  );
+  errorHandler.logError(!checkStatus, res);
+}
+
 export function testCreateIssue() {
   const token = randomItem(tokens);
   const summary = randomItem(summaries);
@@ -172,14 +189,16 @@ export function testCreateIssue() {
       Authorization: `Bearer ${token}`,
     },
   };
+  let res;
   params.tags.name = POST_PREFIX + ENDPOINTS["drafts"]["path"];
-  const res = http.post(
+  res = http.post(
     `${BASE_URL}/${API_PREFIX}${ENDPOINTS["drafts"]["path"]}?${ENDPOINTS["drafts"]["params"]}`,
     JSON.stringify({}),
     params,
   );
+  //checkLogError(res);
   if (res.json().id) {
-    sleep(5);
+    sleep(3);
     const draftId = res.json().id;
     const payload = JSON.stringify({
       summary: `${summary[0]} ${randomString(3)}`,
@@ -189,18 +208,20 @@ export function testCreateIssue() {
         id: "0-0",
       },
     });
-    const res_drafts = http.post(
+    res = http.post(
       `${BASE_URL}/${API_PREFIX}${ENDPOINTS["drafts"]["path"]}/${draftId}?${ENDPOINTS["drafts"]["params"]}`,
       payload,
       params,
     );
-    if (res_drafts.status === 200) {
+    //checkLogError(res);
+    if (res.status === 200) {
       params.tags.name = POST_PREFIX + ENDPOINTS["issues"]["path"];
-      http.post(
+      res = http.post(
         `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issues"]["path"]}/?draftId=${draftId}&${ENDPOINTS["issues"]["params_post"]}`,
         JSON.stringify({}),
         params,
       );
+      checkLogError(res);
     }
   }
 }
@@ -217,21 +238,24 @@ export function testUpdateIssue() {
       Authorization: `Bearer ${token}`,
     },
   };
+  let res;
   /*
    * Parse issueId from top issues
    * Note that it introduces slight imbalance in load model, could be done in a different way - generate ID or prepare a CSV feed
    */
   params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
-  const res = http.get(
+  res = http.get(
     `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params_update"]}`,
     params,
   );
+  checkLogError(res);
   if (res.status === 200) {
     const topIssues = res.json().tree.map((item) => ({
       id: item.id,
     }));
     const issueId = randomItem(topIssues).id;
     if (issueId) {
+      sleep(3);
       // Assign to "me" + change State
       params.tags.name = POST_PREFIX + ENDPOINTS["commandsAssist"]["path"];
       let payload = JSON.stringify({
@@ -256,12 +280,13 @@ export function testUpdateIssue() {
         focus: true,
         issues: [{ id: issueId }],
       });
-      http.post(
+      res = http.post(
         `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commands"]["path"]}?${ENDPOINTS["commands"]["params"]}`,
         payload,
         params,
       );
-      sleep(5);
+      checkLogError(res);
+      sleep(3);
       // Add comment
       params.tags.name = POST_PREFIX + ENDPOINTS["commandsAssist"]["path"];
       payload = JSON.stringify({
@@ -286,11 +311,12 @@ export function testUpdateIssue() {
         focus: true,
         issues: [{ id: issueId }],
       });
-      http.post(
+      res = http.post(
         `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commands"]["path"]}?${ENDPOINTS["commands"]["params"]}`,
         payload,
         params,
       );
+      checkLogError(res);
     }
   }
 }
@@ -305,38 +331,45 @@ export function testViewIssue() {
       Authorization: `Bearer ${token}`,
     },
   };
+  let res;
   // View Issues
-  params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
-  const res = http.get(
-    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params"]}`,
-    params,
-  );
   const payload = JSON.stringify({ query: "" });
   params.tags.name = POST_PREFIX + ENDPOINTS["issuesGetterCount"]["path"];
-  http.post(
+  res = http.post(
     `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issuesGetterCount"]["path"]}?${ENDPOINTS["issuesGetterCount"]["params"]}`,
     payload,
     params,
   );
+  params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
+  res = http.get(
+    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params"]}`,
+    params,
+  );
+  checkLogError(res);
   if (res.status === 200) {
     const topIssues = res.json().tree.map((item) => ({
       id: item.id,
     }));
     const payload = JSON.stringify(topIssues);
     params.tags.name = POST_PREFIX + ENDPOINTS["issuesGetter"]["path"];
-    http.post(
+    res = http.post(
       `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issuesGetter"]["path"]}?${ENDPOINTS["issuesGetter"]["params"]}`,
       payload,
       params,
     );
+    checkLogError(res);
     // View Issue
     sleep(3);
-    const issueId = randomItem(topIssues).id.split("-")[1];
+    const readableIssues = res.json().map((item) => ({
+      id: item.idReadable,
+    }));
+    const issueId = randomItem(readableIssues).id;
     params.tags.name = GET_PREFIX + ENDPOINTS["issues"]["path"];
-    http.get(
-      `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issues"]["path"]}/DEMO-${issueId}?${ENDPOINTS["issues"]["params"]}`,
+    res = http.get(
+      `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issues"]["path"]}/${issueId}?${ENDPOINTS["issues"]["params"]}`,
       params,
     );
+    checkLogError(res);
   }
 }
 
@@ -351,6 +384,7 @@ export function testSearchIssues() {
       Authorization: `Bearer ${token}`,
     },
   };
+  let res;
   params.tags.name = GET_PREFIX + ENDPOINTS["searchAssist"]["path"];
   const payload = JSON.stringify({
     type: "Issue",
@@ -364,12 +398,13 @@ export function testSearchIssues() {
     params,
   );
   params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
-  const res = http.get(
+  res = http.get(
     new URL(
       `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?query=${searchQuery}&${ENDPOINTS["sortedIssues"]["params_search"]}`,
     ).toString(),
     params,
   );
+  checkLogError(res);
   if (res.status === 200) {
     const topIssues = res.json().tree.map((item) => ({
       id: item.id,
