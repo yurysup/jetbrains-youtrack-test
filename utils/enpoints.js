@@ -2,7 +2,7 @@ const ENDPOINTS = {
   sortedIssues: {
     path: "/sortedIssues",
     params:
-      "topRoot=100&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
+      "topRoot=1000&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
   },
   issuesGetter: {
     path: "/issuesGetter",
@@ -24,6 +24,15 @@ const ENDPOINTS = {
     path: "/users/me/drafts",
     params:
       "fields=description,updated,attachments(id,name,author(ringId,avatarUrl,canReadProfile,isLocked,login,name),created,updated,mimeType,url,size,visibility(%40visibility),imageDimensions(width,height),thumbnailURL,recognizedText,searchResults(textSearchResult(highlightRanges(%40textRange))),comment(id,visibility(%40visibility)),embeddedIntoDocument(id),embeddedIntoComments(id)),mentionedUsers(%40reporter),mentionedIssues(id,reporter(%40reporter),resolved,updated,created,unauthenticatedReporter,fields(%40fields),project(%40project),visibility(%40visibility),tags(%40tags),votes,voters(hasVote),watchers(hasStar),usersTyping(timestamp,user(%40permittedUsers)),canUndoComment,idReadable,summary),mentionedArticles(id,idReadable,reporter(%40permittedUsers),summary,project(%40project),parentArticle(idReadable),ordinal,visibility(%40visibility),hasUnpublishedChanges,hasChildren,tags(%40tags)),widgets(id,key,appId,description,appName,name,collapsed,indexPath,extensionPoint(),iconPath,appIconPath,expectedHeight,expectedWidth),canUpdateVisibility,canAddPublicComment,id,summary,created,project(%40project),reporter(%40reporter),fields(%40fields),visibility(%40visibility),tags(id,name,color(%40color),query,issuesUrl,isDeletable,isShareable,isUpdatable,isUsable,pinnedByDefault,untagOnResolve,owner(%40permittedUsers),readSharingSettings(%40updateSharingSettings),tagSharingSettings(%40updateSharingSettings),updateSharingSettings(%40updateSharingSettings)),watchers(hasStar),markdownEmbeddings(key,settings,widget(id))%3B%40fields%3Avalue(id,minutes,presentation,name,description,localizedName,isResolved,color(%40color),buildIntegration,buildLink,text,issueRelatedGroup(%40permittedGroups),ringId,login,email,isEmailVerified,guest,fullName,avatarUrl,online,banned,banBadge,canReadProfile,isLocked,userType(id),allUsersGroup,icon,teamForProject(name,shortName)),id,$type,hasStateMachine,isUpdatable,projectCustomField($type,id,field(id,name,ordinal,aliases,localizedName,fieldType(id,presentation,isBundleType,valueType,isMultiValue)),bundle(id,$type),canBeEmpty,emptyFieldText,hasRunningJob,ordinal,isSpentTime,isPublic),searchResults(id,textSearchResult(highlightRanges(%40textRange),textRange(%40textRange))),pausedTime%3B%40visibility%3A$type,implicitPermittedUsers(%40permittedUsers),permittedGroups(%40permittedGroups),permittedUsers(%40permittedUsers)%3B%40project%3Aid,ringId,name,shortName,iconUrl,template,pinned,archived,isDemo,organization(),hasArticles,team(%40permittedGroups),fieldsSorted,restricted,plugins(timeTrackingSettings(id,enabled),helpDeskSettings(id,enabled,defaultForm(uuid,title)),vcsIntegrationSettings(hasVcsIntegrations),grazie(disabled))%3B%40updateSharingSettings%3ApermittedGroups(%40permittedGroups),permittedUsers(%40permittedUsers)%3B%40reporter%3AissueRelatedGroup(%40permittedGroups),id,ringId,login,name,email,isEmailVerified,guest,fullName,avatarUrl,online,banned,banBadge,canReadProfile,isLocked,userType(id)%3B%40permittedUsers%3Aid,ringId,login,name,email,isEmailVerified,guest,fullName,avatarUrl,online,banned,banBadge,canReadProfile,isLocked,userType(id)%3B%40permittedGroups%3Aid,name,ringId,allUsersGroup,icon,teamForProject(name,shortName)%3B%40tags%3Aid,name,color(%40color)%3B%40color%3Aid,background,foreground%3B%40textRange%3AstartOffset,endOffset",
+  },
+  commandsAssist: {
+    path: "/commands/assist",
+    params:
+      "top=-1&fields=caret,commands(delete,description,error,quickFixes(buttonMessage,message,summary(valueToAdd,bundle($type,id)),id)),comment,query,styleRanges(id,length,start,style,type),suggestions(auxiliaryIcon,caret,className,completionEnd,completionStart,description,group,icon,id,matchingEnd,matchingStart,option,prefix,suffix)",
+  },
+  commands: {
+    path: "/commands",
+    params: "fields=issues(idReadable)",
   },
 };
 

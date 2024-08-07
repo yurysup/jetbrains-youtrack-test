@@ -52,7 +52,7 @@ export const options = {
     },
     update_issue: {
       executor: "ramping-arrival-rate",
-      exec: "test_update_issue",
+      exec: "testUpdateIssue",
       timeUnit: TIME_UNIT,
       preAllocatedVUs: PRE_ALLOCATED_VUS_20,
       stages: [
@@ -99,6 +99,10 @@ export const options = {
     [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["issues"]["path"]}}`]: [
       "p(90)<1000",
     ],
+    [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["commandsAssist"]["path"]}}`]:
+      ["p(90)<1000"],
+    [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["commands"]["path"]}}`]:
+      ["p(90)<1000"],
     http_req_failed: ["rate < 0.01"],
   },
 };
@@ -123,6 +127,28 @@ const descriptions = new SharedArray("descriptions", function () {
   return papaparse.parse(open(`${FEEDS_DIR}/descriptions.csv`), {
     header: false,
   }).data;
+});
+
+const comments = new SharedArray("comments", function () {
+  return papaparse.parse(open(`${FEEDS_DIR}/comments.csv`), {
+    header: false,
+  }).data;
+});
+
+const states = new SharedArray("states", function () {
+  return [
+    "Submitted",
+    "Open",
+    "In Progress",
+    "To be discussed",
+    "Reopened",
+    "Can't Reproduce",
+    "Fixed",
+    "Won't fix",
+    "Incomplete",
+    "Obsolete",
+    "Verified",
+  ];
 });
 
 export function testCreateIssue() {
@@ -170,8 +196,94 @@ export function testCreateIssue() {
   }
 }
 
-export function test_update_issue() {
-  sleep(1);
+export function testUpdateIssue() {
+  const token = randomItem(tokens);
+  const state = randomItem(states);
+  const comment = randomItem(comments)[0];
+  const params = {
+    tags: {},
+    timeout: HTTP_TIMEOUT,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  };
+  /*
+   * Parse issueId from top issues
+   * Note that it introduces slight imbalance in load model, could be done in a different way - generate ID or prepare a CSV feed
+   */
+  params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
+  const res = http.get(
+    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params"]}`,
+    params,
+  );
+  if (res.status === 200) {
+    const topIssues = res.json().tree.map((item) => ({
+      id: item.id,
+    }));
+    const issueId = randomItem(topIssues).id;
+    if (issueId) {
+      // Assign to "me" + change State
+      params.tags.name = POST_PREFIX + ENDPOINTS["commandsAssist"]["path"];
+      let payload = JSON.stringify({
+        query: "Assignee me State",
+        caret: 17,
+        issues: [{ id: issueId }],
+      });
+      http.post(
+        `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commandsAssist"]["path"]}?${ENDPOINTS["commandsAssist"]["params"]}`,
+        payload,
+        params,
+      );
+      params.tags.name = POST_PREFIX + ENDPOINTS["commands"]["path"];
+      payload = JSON.stringify({
+        comment: null,
+        usesMarkdown: true,
+        silent: false,
+        prevCaret: 18,
+        caret: 23,
+        selection: 23,
+        query: `Assignee me State ${state} `,
+        focus: true,
+        issues: [{ id: issueId }],
+      });
+      http.post(
+        `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commands"]["path"]}?${ENDPOINTS["commands"]["params"]}`,
+        payload,
+        params,
+      );
+      sleep(5);
+      // Add comment
+      params.tags.name = POST_PREFIX + ENDPOINTS["commandsAssist"]["path"];
+      payload = JSON.stringify({
+        query: "comment ",
+        caret: 8,
+        issues: [{ id: issueId }],
+      });
+      http.post(
+        `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commandsAssist"]["path"]}?${ENDPOINTS["commandsAssist"]["params"]}`,
+        payload,
+        params,
+      );
+      params.tags.name = POST_PREFIX + ENDPOINTS["commands"]["path"];
+      payload = JSON.stringify({
+        comment: comment,
+        usesMarkdown: true,
+        silent: false,
+        prevCaret: 7,
+        caret: 8,
+        selection: 8,
+        query: "comment ",
+        focus: true,
+        issues: [{ id: issueId }],
+      });
+      http.post(
+        `${BASE_URL}/${API_PREFIX}${ENDPOINTS["commands"]["path"]}?${ENDPOINTS["commands"]["params"]}`,
+        payload,
+        params,
+      );
+    }
+  }
 }
 
 export function testViewIssue() {
@@ -198,10 +310,10 @@ export function testViewIssue() {
     params,
   );
   if (res.status === 200) {
-    const topIssue = res.json().tree.map((item) => ({
+    const topIssues = res.json().tree.map((item) => ({
       id: item.id,
     }));
-    const payload = JSON.stringify(topIssue);
+    const payload = JSON.stringify(topIssues);
     params.tags.name = POST_PREFIX + ENDPOINTS["issuesGetter"]["path"];
     http.post(
       `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issuesGetter"]["path"]}?${ENDPOINTS["issuesGetter"]["params"]}`,
@@ -210,7 +322,7 @@ export function testViewIssue() {
     );
     // View Issue
     sleep(3);
-    const issueId = randomItem(topIssue).id.split("-")[1];
+    const issueId = randomItem(topIssues).id.split("-")[1];
     params.tags.name = GET_PREFIX + ENDPOINTS["issues"]["path"];
     http.get(
       `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issues"]["path"]}/DEMO-${issueId}?${ENDPOINTS["issues"]["params"]}`,
@@ -225,7 +337,7 @@ export function test_search() {
 
 export default function () {
   testCreateIssue();
-  //test_update_issue();
+  testUpdateIssue();
   testViewIssue();
   //test_search();
 }
