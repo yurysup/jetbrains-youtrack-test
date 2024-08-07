@@ -14,8 +14,8 @@ const API_PREFIX = "api";
 const GET_PREFIX = "GET ";
 const POST_PREFIX = "POST ";
 const HTTP_TIMEOUT = "10s"; // override default timeout 60s
-const PRE_ALLOCATED_VUS_10 = 10; // low load rate
-const PRE_ALLOCATED_VUS_50 = 50; // high load rate
+const PRE_ALLOCATED_VUS_20 = 20; // low load rate
+const PRE_ALLOCATED_VUS_100 = 100; // high load rate
 // Load rates
 const TIME_UNIT = "1m"; // load rates to be set per minute (RPM)
 const X_LOAD = getEnvVar("X_LOAD", 1);
@@ -43,7 +43,7 @@ export const options = {
       executor: "ramping-arrival-rate",
       exec: "testCreateIssue",
       timeUnit: TIME_UNIT,
-      preAllocatedVUs: PRE_ALLOCATED_VUS_10,
+      preAllocatedVUs: PRE_ALLOCATED_VUS_20,
       stages: [
         { target: RATE_CREATE_ISSUE, duration: RAMP_UP },
         { target: RATE_CREATE_ISSUE, duration: HOLD_RATE },
@@ -54,7 +54,7 @@ export const options = {
       executor: "ramping-arrival-rate",
       exec: "test_update_issue",
       timeUnit: TIME_UNIT,
-      preAllocatedVUs: PRE_ALLOCATED_VUS_10,
+      preAllocatedVUs: PRE_ALLOCATED_VUS_20,
       stages: [
         { target: RATE_UPDATE_ISSUE, duration: RAMP_UP },
         { target: RATE_UPDATE_ISSUE, duration: HOLD_RATE },
@@ -65,7 +65,7 @@ export const options = {
       executor: "ramping-arrival-rate",
       exec: "testViewIssue",
       timeUnit: TIME_UNIT,
-      preAllocatedVUs: PRE_ALLOCATED_VUS_50,
+      preAllocatedVUs: PRE_ALLOCATED_VUS_100,
       stages: [
         { target: RATE_VIEW_ISSUE, duration: RAMP_UP },
         { target: RATE_VIEW_ISSUE, duration: HOLD_RATE },
@@ -76,7 +76,7 @@ export const options = {
       executor: "ramping-arrival-rate",
       exec: "test_search",
       timeUnit: TIME_UNIT,
-      preAllocatedVUs: PRE_ALLOCATED_VUS_10,
+      preAllocatedVUs: PRE_ALLOCATED_VUS_20,
       stages: [
         { target: RATE_SEARCH, duration: RAMP_UP },
         { target: RATE_SEARCH, duration: HOLD_RATE },
@@ -86,13 +86,19 @@ export const options = {
   },
   // Thresholds defined for specific requests will appear in summary output.
   thresholds: {
-    [`http_req_duration{name:${ENDPOINTS["sortedIssues"]["path"]}}`]: [
+    [`http_req_duration{name:${GET_PREFIX + ENDPOINTS["sortedIssues"]["path"]}}`]:
+      ["p(90)<500"],
+    [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["issuesGetter"]["path"]}}`]:
+      ["p(90)<1000"],
+    [`http_req_duration{name:${GET_PREFIX + ENDPOINTS["issues"]["path"]}}`]: [
       "p(90)<500",
     ],
-    [`http_req_duration{name:${ENDPOINTS["issuesGetter"]["path"]}}`]: [
-      "p(90)<500",
+    [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["drafts"]["path"]}}`]: [
+      "p(90)<1000",
     ],
-    [`http_req_duration{name:${ENDPOINTS["issues"]["path"]}}`]: ["p(90)<1000"],
+    [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["issues"]["path"]}}`]: [
+      "p(90)<1000",
+    ],
     http_req_failed: ["rate < 0.01"],
   },
 };
@@ -120,28 +126,48 @@ const descriptions = new SharedArray("descriptions", function () {
 });
 
 export function testCreateIssue() {
-  const CREATE_ISSUE = "/issues";
   const token = randomItem(tokens);
   const summary = randomItem(summaries);
   const description = randomItem(descriptions);
   const params = {
-    tags: { name: CREATE_ISSUE },
+    tags: {},
     timeout: HTTP_TIMEOUT,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   };
-  // Demo project id 0-0
-  const payload = JSON.stringify({
-    summary: `${summary[0]} ${randomString(3)}`,
-    description: description[0],
-    project: {
-      id: "0-0",
-    },
-  });
-  // https://www.jetbrains.com/help/youtrack/devportal/resource-api-issues.html#create-Issue-method
-  http.post(`${BASE_URL}/${API_PREFIX}/issues`, payload, params);
+  params.tags.name = POST_PREFIX + ENDPOINTS["drafts"]["path"];
+  const res = http.post(
+    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["drafts"]["path"]}?${ENDPOINTS["drafts"]["params"]}`,
+    JSON.stringify({}),
+    params,
+  );
+  if (res.json().id) {
+    sleep(5);
+    const draftId = res.json().id;
+    const payload = JSON.stringify({
+      summary: `${summary[0]} ${randomString(3)}`,
+      description: description[0],
+      markdownEmbeddings: [],
+      project: {
+        id: "0-0",
+      },
+    });
+    const res_drafts = http.post(
+      `${BASE_URL}/${API_PREFIX}${ENDPOINTS["drafts"]["path"]}/${draftId}?${ENDPOINTS["drafts"]["params"]}`,
+      payload,
+      params,
+    );
+    if (res_drafts.status === 200) {
+      params.tags.name = POST_PREFIX + ENDPOINTS["issues"]["path"];
+      http.post(
+        `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issues"]["path"]}/?draftId=${draftId}&${ENDPOINTS["issues"]["params_post"]}`,
+        JSON.stringify({}),
+        params,
+      );
+    }
+  }
 }
 
 export function test_update_issue() {
