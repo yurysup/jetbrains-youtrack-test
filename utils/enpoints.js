@@ -2,7 +2,11 @@ const ENDPOINTS = {
   sortedIssues: {
     path: "/sortedIssues",
     params:
+      "topRoot=100&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
+    params_update:
       "topRoot=1000&skipRoot=0&flatten=true&query=&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
+    params_search:
+      "topRoot=100&skipRoot=0&flatten=true&fields=tree(id,summaryTextSearchResult(highlightRanges(startOffset,endOffset)))",
   },
   issuesGetter: {
     path: "/issuesGetter",
@@ -33,6 +37,11 @@ const ENDPOINTS = {
   commands: {
     path: "/commands",
     params: "fields=issues(idReadable)",
+  },
+  searchAssist: {
+    path: "/search/assist",
+    params:
+      "fields=title,caret,query,styleRanges(length,start,style,title),suggestions(description,group,icon,option,prefix,suffix,className,matchingStart,matchingEnd,caret,completionStart,completionEnd),ast(expression(%40exp))%3B%40exp%3A$type,operator,left(%40exp),right(%40exp),terms(text,start,stop,minus,value%2Fname,fields(field(name),minus),%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value(name),field(name,start,stop,filterFields($type,id,customField(id,name))),values($type,start,stop,minus,value(name,minus),left(name),right(name),expression(%40exp)))",
   },
 };
 

@@ -4,6 +4,7 @@ import { HOSTS } from "./utils/hosts.js";
 import { ENDPOINTS } from "./utils/enpoints.js";
 import papaparse from "./utils/papaparse.min.js";
 import { getEnvVar, randomItem, randomString } from "./utils/utils.js";
+import { URL } from "https://jslib.k6.io/url/1.0.0/index.js";
 import { sleep } from "k6";
 
 // Parameters setup
@@ -72,9 +73,9 @@ export const options = {
         { target: 0, duration: TEAR_DOWN },
       ],
     },
-    search: {
+    search_issues: {
       executor: "ramping-arrival-rate",
-      exec: "test_search",
+      exec: "testSearchIssues",
       timeUnit: TIME_UNIT,
       preAllocatedVUs: PRE_ALLOCATED_VUS_20,
       stages: [
@@ -103,6 +104,8 @@ export const options = {
       ["p(90)<1000"],
     [`http_req_duration{name:${POST_PREFIX + ENDPOINTS["commands"]["path"]}}`]:
       ["p(90)<1000"],
+    [`http_req_duration{name:${GET_PREFIX + ENDPOINTS["searchAssist"]["path"]}}`]:
+      ["p(90)<500"],
     http_req_failed: ["rate < 0.01"],
   },
 };
@@ -149,6 +152,12 @@ const states = new SharedArray("states", function () {
     "Obsolete",
     "Verified",
   ];
+});
+
+const searchQueries = new SharedArray("searchQueries", function () {
+  return papaparse.parse(open(`${FEEDS_DIR}/search_queries.csv`), {
+    header: false,
+  }).data;
 });
 
 export function testCreateIssue() {
@@ -214,7 +223,7 @@ export function testUpdateIssue() {
    */
   params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
   const res = http.get(
-    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params"]}`,
+    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?${ENDPOINTS["sortedIssues"]["params_update"]}`,
     params,
   );
   if (res.status === 200) {
@@ -331,13 +340,53 @@ export function testViewIssue() {
   }
 }
 
-export function test_search() {
-  sleep(1);
+export function testSearchIssues() {
+  const token = randomItem(tokens);
+  const searchQuery = randomItem(searchQueries)[0];
+  const params = {
+    tags: {},
+    timeout: HTTP_TIMEOUT,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  };
+  params.tags.name = GET_PREFIX + ENDPOINTS["searchAssist"]["path"];
+  const payload = JSON.stringify({
+    type: "Issue",
+    query: searchQuery,
+    caret: 0,
+    folders: [],
+  });
+  http.post(
+    `${BASE_URL}/${API_PREFIX}${ENDPOINTS["searchAssist"]["path"]}?${ENDPOINTS["searchAssist"]["params"]}`,
+    payload,
+    params,
+  );
+  params.tags.name = GET_PREFIX + ENDPOINTS["sortedIssues"]["path"];
+  const res = http.get(
+    new URL(
+      `${BASE_URL}/${API_PREFIX}${ENDPOINTS["sortedIssues"]["path"]}?query=${searchQuery}&${ENDPOINTS["sortedIssues"]["params_search"]}`,
+    ).toString(),
+    params,
+  );
+  if (res.status === 200) {
+    const topIssues = res.json().tree.map((item) => ({
+      id: item.id,
+    }));
+    const payload = JSON.stringify(topIssues);
+    params.tags.name = POST_PREFIX + ENDPOINTS["issuesGetter"]["path"];
+    http.post(
+      `${BASE_URL}/${API_PREFIX}${ENDPOINTS["issuesGetter"]["path"]}?${ENDPOINTS["issuesGetter"]["params"]}`,
+      payload,
+      params,
+    );
+  }
 }
 
 export default function () {
   testCreateIssue();
   testUpdateIssue();
   testViewIssue();
-  //test_search();
+  testSearchIssues();
 }
